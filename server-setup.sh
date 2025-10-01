@@ -36,7 +36,11 @@ git clone https://github.com/pixeat-site/api.git .
 
 # Configurar ambiente de produção
 echo "⚙️ Configurando ambiente..."
-cp src/.env.example src/.env
+cp env.production.template src/.env
+echo "📝 IMPORTANTE: Edite o arquivo src/.env com suas configurações:"
+echo "   - GEMINI_API_KEY (sua chave do Google Gemini)"
+echo "   - DB_PASSWORD (senha forte para o banco)"
+echo "   - APP_KEY (será gerado automaticamente)"
 
 # Configurar Nginx
 echo "🌐 Configurando Nginx..."

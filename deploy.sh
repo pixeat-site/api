@@ -29,6 +29,10 @@ docker compose -f docker-compose.prod.yml up -d
 echo "⏳ Aguardando containers iniciarem..."
 sleep 30
 
+# Gerar chave da aplicação
+echo "🔑 Gerando chave da aplicação..."
+docker compose -f docker-compose.prod.yml exec app php artisan key:generate --force
+
 # Executar migrations
 echo "🗃️  Executando migrations..."
 docker compose -f docker-compose.prod.yml exec app php artisan migrate --force

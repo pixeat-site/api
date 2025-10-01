@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Aplicação Laravel
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pixeat_laravel_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./src:/var/www/html
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - pixeat_network
+    depends_on:
+      - db
+      - redis
+
+  # Servidor Web Nginx
+  webserver:
+    image: nginx:alpine
+    container_name: pixeat_nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - pixeat_network
+    depends_on:
+      - app
+
+  # Banco de Dados PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: pixeat_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pixeat_db
+      POSTGRES_USER: pixeat_user
+      POSTGRES_PASSWORD: pixeat_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5434:5432"
+    networks:
+      - pixeat_network
+
+  # Redis para Cache e Sessões
+  redis:
+    image: redis:7-alpine
+    container_name: pixeat_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - pixeat_network
+
+  # pgAdmin para gerenciar o PostgreSQL
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pixeat_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pixeat.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "8081:80"
+    networks:
+      - pixeat_network
+    depends_on:
+      - db
+
+networks:
+  pixeat_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local

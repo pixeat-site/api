@@ -52,5 +52,5 @@ echo "✅ Verificando status dos containers..."
 docker compose -f docker-compose.prod.yml ps
 
 echo "🎉 Deploy concluído!"
-echo "📍 API disponível em: http://localhost"
+echo "📍 API disponível em: http://localhost:8081"
 echo "🔍 Para verificar logs: docker compose -f docker-compose.prod.yml logs -f"

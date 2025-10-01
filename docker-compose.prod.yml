@@ -24,7 +24,7 @@ services:
     container_name: pixeat-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8081:80"
     volumes:
       - ./public:/var/www/html
       - ./src:/var/www/html/src

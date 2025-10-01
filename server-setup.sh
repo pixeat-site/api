@@ -45,8 +45,25 @@ sudo tee /etc/nginx/sites-available/pixeat << EOF
 server {
     listen 80;
     server_name pixeat.site www.pixeat.site;
+    root /var/www/pixeat/public;
+    index index.html;
     
+    # Servir arquivos estáticos
     location / {
+        try_files \$uri \$uri/ @api;
+    }
+    
+    # Redirecionar para API quando necessário
+    location @api {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    # API routes
+    location /api/ {
         proxy_pass http://localhost:8080;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planos PixEat - Escolha o Melhor para Você</title>
+    <meta name="description" content="Escolha o plano PixEat ideal para suas necessidades. Do básico gratuito ao premium com recursos avançados.">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9ff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 4rem 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .pricing-section {
+            padding: 4rem 0;
+        }
+        
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .pricing-card {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem 2rem;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            position: relative;
+            border: 2px solid transparent;
+        }
+        
+        .pricing-card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .pricing-card.featured {
+            border-color: #667eea;
+            transform: scale(1.05);
+        }
+        
+        .pricing-card.featured::before {
+            content: 'MAIS POPULAR';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #667eea;
+            color: white;
+            padding: 0.5rem 2rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        
+        .plan-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        
+        .plan-price {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .plan-period {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        
+        .plan-features {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+        
+        .plan-features li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .plan-features li:last-child {
+            border-bottom: none;
+        }
+        
+        .feature-check {
+            color: #4CAF50;
+            margin-right: 0.5rem;
+        }
+        
+        .feature-cross {
+            color: #f44336;
+            margin-right: 0.5rem;
+        }
+        
+        .plan-button {
+            width: 100%;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .plan-button.primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .plan-button.primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        .plan-button.secondary {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .plan-button.secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .faq-section {
+            background: white;
+            padding: 4rem 0;
+        }
+        
+        .faq-grid {
+            display: grid;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .faq-item {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+        
+        .faq-question {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        
+        .faq-answer {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        footer {
+            background: #1a1a1a;
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+        }
+        
+        @media (max-width: 768px) {
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .pricing-card.featured {
+                transform: none;
+            }
+            
+            .hero h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <a href="/" class="logo">🍽️ PixEat</a>
+            <a href="/" class="back-link">← Voltar ao Início</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Escolha seu Plano PixEat</h1>
+            <p>Encontre o plano perfeito para suas necessidades</p>
+        </div>
+    </section>
+
+    <section class="pricing-section">
+        <div class="container">
+            <div class="pricing-grid">
+                <!-- Plano Gratuito -->
+                <div class="pricing-card">
+                    <h3 class="plan-name">Gratuito</h3>
+                    <div class="plan-price">R$ 0</div>
+                    <div class="plan-period">Para sempre</div>
+                    <ul class="plan-features">
+                        <li><span class="feature-check">✓</span> 10 análises por dia</li>
+                        <li><span class="feature-check">✓</span> Identificação básica de alimentos</li>
+                        <li><span class="feature-check">✓</span> Cálculo de calorias</li>
+                        <li><span class="feature-check">✓</span> Histórico de 7 dias</li>
+                        <li><span class="feature-check">✓</span> Suporte por email</li>
+                        <li><span class="feature-cross">✗</span> Relatórios avançados</li>
+                        <li><span class="feature-cross">✗</span> Análise nutricional detalhada</li>
+                        <li><span class="feature-cross">✗</span> Exportação de dados</li>
+                    </ul>
+                    <a href="/downloads/pixeat-v1.0.0.apk" class="plan-button secondary">Baixar Grátis</a>
+                </div>
+
+                <!-- Plano Premium -->
+                <div class="pricing-card featured">
+                    <h3 class="plan-name">Premium</h3>
+                    <div class="plan-price">R$ 19,90</div>
+                    <div class="plan-period">por mês</div>
+                    <ul class="plan-features">
+                        <li><span class="feature-check">✓</span> Análises ilimitadas</li>
+                        <li><span class="feature-check">✓</span> Identificação avançada de alimentos</li>
+                        <li><span class="feature-check">✓</span> Cálculo completo de macronutrientes</li>
+                        <li><span class="feature-check">✓</span> Histórico ilimitado</li>
+                        <li><span class="feature-check">✓</span> Relatórios detalhados</li>
+                        <li><span class="feature-check">✓</span> Análise nutricional completa</li>
+                        <li><span class="feature-check">✓</span> Exportação para CSV/PDF</li>
+                        <li><span class="feature-check">✓</span> Suporte prioritário</li>
+                        <li><span class="feature-check">✓</span> Recomendações personalizadas</li>
+                    </ul>
+                    <a href="#" class="plan-button primary">Em Breve</a>
+                </div>
+
+                <!-- Plano Anual -->
+                <div class="pricing-card">
+                    <h3 class="plan-name">Premium Anual</h3>
+                    <div class="plan-price">R$ 199,90</div>
+                    <div class="plan-period">por ano (2 meses grátis!)</div>
+                    <ul class="plan-features">
+                        <li><span class="feature-check">✓</span> Todos os recursos Premium</li>
+                        <li><span class="feature-check">✓</span> Análises ilimitadas</li>
+                        <li><span class="feature-check">✓</span> Identificação avançada de alimentos</li>
+                        <li><span class="feature-check">✓</span> Cálculo completo de macronutrientes</li>
+                        <li><span class="feature-check">✓</span> Histórico ilimitado</li>
+                        <li><span class="feature-check">✓</span> Relatórios detalhados</li>
+                        <li><span class="feature-check">✓</span> Análise nutricional completa</li>
+                        <li><span class="feature-check">✓</span> Exportação para CSV/PDF</li>
+                        <li><span class="feature-check">✓</span> Suporte prioritário</li>
+                        <li><span class="feature-check">✓</span> Recomendações personalizadas</li>
+                        <li><span class="feature-check">✓</span> Acesso antecipado a novos recursos</li>
+                    </ul>
+                    <a href="#" class="plan-button primary">Em Breve</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="faq-section">
+        <div class="container">
+            <h2 style="text-align: center; margin-bottom: 1rem; color: #333;">Perguntas Frequentes</h2>
+            <div class="faq-grid">
+                <div class="faq-item">
+                    <div class="faq-question">Posso cancelar minha assinatura a qualquer momento?</div>
+                    <div class="faq-answer">Sim! Você pode cancelar sua assinatura Premium a qualquer momento. Não há taxas de cancelamento ou compromissos de longo prazo.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">O que acontece se eu exceder o limite do plano gratuito?</div>
+                    <div class="faq-answer">Você receberá uma notificação quando estiver próximo do limite. Para continuar usando o PixEat, você pode fazer upgrade para o plano Premium.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">Meus dados estão seguros?</div>
+                    <div class="faq-answer">Absolutamente! Todos os seus dados são criptografados e armazenados de forma segura. Nunca compartilhamos suas informações pessoais com terceiros.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">O app funciona offline?</div>
+                    <div class="faq-answer">O PixEat precisa de conexão com a internet para analisar as imagens, mas você pode visualizar seu histórico e dados salvos offline.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">Quando os planos Premium estarão disponíveis?</div>
+                    <div class="faq-answer">Estamos trabalhando nos recursos Premium e planejamos lançá-los no primeiro trimestre de 2025. Cadastre-se para ser notificado!</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 PixEat. Desenvolvido com ❤️ para uma vida mais saudável.</p>
+        </div>
+    </footer>
+</body>
+</html>

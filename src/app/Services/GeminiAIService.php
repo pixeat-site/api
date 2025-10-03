@@ -15,7 +15,8 @@ class GeminiAIService
     public function __construct()
     {
         $this->apiKey = config('services.gemini.api_key');
-        $this->baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent';
+        // Usando modelo Gemini 2.0 Flash Experimental (mais recente e funcional)
+        $this->baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
     }
 
     /**
@@ -23,13 +24,19 @@ class GeminiAIService
      */
     public function analyzeFood(string $imageBase64): array
     {
+        Log::info('🔍 [GEMINI] Iniciando análise de imagem');
+        
         if (empty($this->apiKey)) {
-            Log::warning('Gemini API key not configured, returning default analysis');
+            Log::warning('❌ [GEMINI] API key not configured, returning default analysis');
             return $this->getDefaultAnalysis();
         }
 
+        Log::info('✅ [GEMINI] API key configurada');
+        Log::info('📏 [GEMINI] Tamanho da imagem base64: ' . strlen($imageBase64) . ' caracteres');
+
         try {
             $prompt = $this->buildFoodAnalysisPrompt();
+            Log::info('📝 [GEMINI] Prompt criado, enviando requisição...');
             
             $response = Http::timeout(30)
                 ->post($this->baseUrl . '?key=' . $this->apiKey, [
@@ -57,29 +64,39 @@ class GeminiAIService
                 ]);
 
             if (!$response->successful()) {
-                Log::error('Gemini API Error', [
+                Log::error('❌ [GEMINI] API Error', [
                     'status' => $response->status(),
                     'body' => $response->body()
                 ]);
                 throw new Exception('Erro na API do Gemini: ' . $response->body());
             }
 
+            Log::info('📥 [GEMINI] Resposta recebida com sucesso');
             $data = $response->json();
+            Log::info('📊 [GEMINI] Resposta JSON parseada');
             
             if (!isset($data['candidates'][0]['content']['parts'][0]['text'])) {
+                Log::error('❌ [GEMINI] Resposta inválida - estrutura inesperada', ['data' => $data]);
                 throw new Exception('Resposta inválida da API do Gemini');
             }
 
             $analysisText = $data['candidates'][0]['content']['parts'][0]['text'];
+            Log::info('📝 [GEMINI] Texto da análise extraído: ' . substr($analysisText, 0, 200) . '...');
             
-            return $this->parseGeminiResponse($analysisText);
+            $result = $this->parseGeminiResponse($analysisText);
+            Log::info('✅ [GEMINI] Análise completa', $result);
+            
+            return $result;
 
         } catch (Exception $e) {
-            Log::error('Gemini AI Analysis Error', [
+            Log::error('❌❌❌ [GEMINI] AI Analysis Error', [
                 'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
             
+            Log::warning('⚠️ [GEMINI] Retornando análise padrão devido ao erro');
             // Retornar dados padrão em caso de erro
             return $this->getDefaultAnalysis();
         }

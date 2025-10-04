@@ -12,6 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Force JSON parsing quando Content-Type está ausente
+        $middleware->prepend(\App\Http\Middleware\ForceJsonRequest::class);
         // Debug middleware para ver o que chega no Laravel
         $middleware->append(\App\Http\Middleware\DebugRequest::class);
     })

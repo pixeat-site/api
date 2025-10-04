@@ -26,8 +26,7 @@ services:
     ports:
       - "8081:80"
     volumes:
-      - ./public:/var/www/html
-      - ./src:/var/www/html/src
+      - ./src:/var/www/html  # Monta Laravel completo (inclui public/)
       - ./docker/nginx/pixeat.conf:/etc/nginx/conf.d/default.conf
       - ./ssl:/etc/nginx/ssl  # Para certificados SSL
     networks:

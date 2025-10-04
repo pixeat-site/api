@@ -12,7 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Debug middleware para ver o que chega no Laravel
+        $middleware->append(\App\Http\Middleware\DebugRequest::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

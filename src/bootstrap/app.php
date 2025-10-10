@@ -16,6 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\App\Http\Middleware\ForceJsonRequest::class);
         // Debug middleware para ver o que chega no Laravel
         $middleware->append(\App\Http\Middleware\DebugRequest::class);
+        
+        // Configurar redirecionamento para APIs - retornar null para não redirecionar
+        $middleware->redirectGuestsTo(function () {
+            return null;
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Tratar erros de autenticação para API

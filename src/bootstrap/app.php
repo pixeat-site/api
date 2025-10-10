@@ -16,13 +16,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\App\Http\Middleware\ForceJsonRequest::class);
         // Debug middleware para ver o que chega no Laravel
         $middleware->append(\App\Http\Middleware\DebugRequest::class);
-        
-        // Configurar comportamento de autenticação para API
-        $middleware->redirectGuestsTo(fn () => response()->json([
-            'success' => false,
-            'message' => 'Unauthenticated.'
-        ], 401));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Tratar erros de autenticação para API
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated.'
+                ], 401);
+            }
+        });
     })->create();

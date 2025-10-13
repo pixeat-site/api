@@ -16,7 +16,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\App\Http\Middleware\ForceJsonRequest::class);
         // Debug middleware para ver o que chega no Laravel
         $middleware->append(\App\Http\Middleware\DebugRequest::class);
+        
+        // Desabilitar redirecionamento para login na API
+        $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Retornar JSON para erros de autenticação na API
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated.'
+                ], 401);
+            }
+        });
     })->create();

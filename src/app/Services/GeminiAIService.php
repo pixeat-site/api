@@ -56,10 +56,10 @@ class GeminiAIService
                         ]
                     ],
                     'generationConfig' => [
-                        'temperature' => 0.1,
-                        'topK' => 32,
-                        'topP' => 1,
-                        'maxOutputTokens' => 1024,
+                        'temperature' => 0.2, // Aumentar um pouco para respostas mais variadas mas ainda precisas
+                        'topK' => 40,
+                        'topP' => 0.95,
+                        'maxOutputTokens' => 2048, // Aumentar para análises mais detalhadas
                     ]
                 ]);
 
@@ -107,30 +107,59 @@ class GeminiAIService
      */
     private function buildFoodAnalysisPrompt(): string
     {
-        return "Analise esta imagem de comida e forneça as seguintes informações em formato JSON válido:
+        return "Você é um nutricionista especializado em análise visual de alimentos. Analise esta imagem de comida com MÁXIMA PRECISÃO e forneça as informações em formato JSON válido.
+
+IMPORTANTE: Retorne APENAS o JSON sem qualquer texto adicional, markdown ou explicações.
 
 {
-  \"food_name\": \"Nome do prato ou alimento principal\",
-  \"estimated_calories\": número_de_calorias_estimado,
-  \"confidence\": valor_entre_0_e_1_indicando_confiança,
-  \"ingredients\": [\"lista\", \"de\", \"ingredientes\", \"identificados\"],
-  \"description\": \"Descrição detalhada do que você vê na imagem\",
-  \"portion_size\": \"Tamanho da porção estimado (pequena/média/grande)\",
+  \"food_name\": \"Nome específico do prato ou alimento (seja descritivo)\",
+  \"estimated_calories\": número_exato_de_calorias_baseado_no_volume_real,
+  \"confidence\": valor_entre_0_e_1_da_sua_certeza,
+  \"ingredients\": [\"ingrediente1\", \"ingrediente2\", \"ingrediente3\"],
+  \"description\": \"Descrição detalhada e objetiva do prato\",
+  \"portion_size\": \"pequena|média|grande\",
   \"nutritional_info\": {
-    \"carbohydrates\": gramas_estimadas,
-    \"proteins\": gramas_estimadas,
-    \"fats\": gramas_estimadas,
-    \"fiber\": gramas_estimadas
+    \"carbohydrates\": gramas_de_carboidratos,
+    \"proteins\": gramas_de_proteínas,
+    \"fats\": gramas_de_gorduras,
+    \"fiber\": gramas_de_fibras
   }
 }
 
-Instruções importantes:
-1. Seja preciso na estimativa de calorias baseado no que você vê
-2. Se não conseguir identificar claramente, use confidence baixo (0.3-0.5)
-3. Para pratos brasileiros, considere ingredientes típicos
-4. Estime o tamanho da porção baseado em referências visuais
-5. Retorne APENAS o JSON, sem texto adicional
-6. Se não conseguir analisar, retorne confidence 0.1 e estimativa conservadora";
+REGRAS CRÍTICAS:
+1. ANÁLISE DE PORÇÃO: Observe cuidadosamente o tamanho da porção. Use referências visuais como pratos, talheres ou embalagens.
+   - Porção pequena: ~200-300 kcal
+   - Porção média: ~400-600 kcal  
+   - Porção grande: ~700-1000 kcal
+
+2. CONFIANÇA (confidence):
+   - 0.9-1.0: Prato claramente visível, ingredientes identificáveis, porção clara
+   - 0.7-0.8: Maioria dos ingredientes visíveis, porção razoavelmente estimável
+   - 0.5-0.6: Alguns ingredientes obscuros, porção difícil de estimar
+   - 0.3-0.4: Imagem de baixa qualidade ou ângulo ruim
+   - 0.1-0.2: Não é possível identificar comida claramente
+
+3. CALORIAS PRECISAS:
+   - Considere TODOS os ingredientes visíveis
+   - Observe óleos, molhos e temperos
+   - Para pratos brasileiros: arroz (~200kcal/xícara), feijão (~150kcal/concha), carne (~250kcal/100g)
+   - Ajuste baseado no volume real da porção na imagem
+
+4. INGREDIENTES: Liste todos os componentes visíveis (mínimo 3, máximo 8)
+
+5. MACRONUTRIENTES: Calcule baseado nos ingredientes identificados e porção estimada
+
+6. PRATOS COMPOSTOS: Se houver múltiplos alimentos no prato, some as calorias de cada um
+
+7. DESCRIÇÃO: Seja específico - ex: \"Prato com arroz branco, feijão preto, bife grelhado e salada de tomate\"
+
+EXEMPLOS DE BOA ANÁLISE:
+- Prato grande com arroz, feijão, carne e salad → 850-950 kcal
+- Sanduíche médio → 400-500 kcal
+- Salada com frango grelhado → 350-450 kcal
+- Pizza 2 fatias grandes → 600-700 kcal
+
+Retorne APENAS o JSON, sem ```json ou qualquer outro marcador.";
     }
 
     /**

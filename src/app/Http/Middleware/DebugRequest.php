@@ -10,16 +10,17 @@ class DebugRequest
 {
     public function handle(Request $request, Closure $next)
     {
-        // Log TUDO que chega no Laravel
-        Log::info('🔍 [REQUEST DEBUG] ====================================');
-        Log::info('Method: ' . $request->method());
-        Log::info('URL: ' . $request->fullUrl());
-        Log::info('Headers: ' . json_encode($request->headers->all()));
-        Log::info('Content-Type: ' . $request->header('Content-Type'));
-        Log::info('Raw Body: ' . $request->getContent());
-        Log::info('Parsed Input: ' . json_encode($request->all()));
-        Log::info('Has JSON: ' . ($request->isJson() ? 'YES' : 'NO'));
-        Log::info('====================================================');
+        // Log TUDO que chega no Laravel (usando error para aparecer em produção)
+        Log::error('🔍 [REQUEST DEBUG] ====================================');
+        Log::error('Method: ' . $request->method());
+        Log::error('URL: ' . $request->fullUrl());
+        Log::error('Headers: ' . json_encode($request->headers->all()));
+        Log::error('Authorization Header: ' . $request->header('Authorization'));
+        Log::error('Content-Type: ' . $request->header('Content-Type'));
+        Log::error('Raw Body: ' . $request->getContent());
+        Log::error('Parsed Input: ' . json_encode($request->all()));
+        Log::error('Has JSON: ' . ($request->isJson() ? 'YES' : 'NO'));
+        Log::error('====================================================');
 
         return $next($request);
     }

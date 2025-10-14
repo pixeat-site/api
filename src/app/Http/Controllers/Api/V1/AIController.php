@@ -42,8 +42,11 @@ class AIController extends Controller
             $image = $request->file('image');
             $imageBase64 = base64_encode(file_get_contents($image->getPathname()));
 
-            // Analisar com Gemini AI
-            $analysis = $this->geminiService->analyzeFood($imageBase64);
+            // Obter usuário autenticado para análise personalizada
+            $user = auth()->user();
+            
+            // Analisar com Gemini AI (com contexto do usuário se disponível)
+            $analysis = $this->geminiService->analyzeFood($imageBase64, $user);
 
             // Log da análise para debug
             Log::info('AI Analysis Result', [

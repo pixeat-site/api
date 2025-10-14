@@ -22,7 +22,7 @@ class GeminiAIService
     /**
      * Analisa uma imagem de comida e retorna informações nutricionais
      */
-    public function analyzeFood(string $imageBase64): array
+    public function analyzeFood(string $imageBase64, $user = null): array
     {
         Log::info('🔍 [GEMINI] Iniciando análise de imagem');
         
@@ -35,8 +35,11 @@ class GeminiAIService
         Log::info('📏 [GEMINI] Tamanho da imagem base64: ' . strlen($imageBase64) . ' caracteres');
 
         try {
-            $prompt = $this->buildFoodAnalysisPrompt();
+            $prompt = $this->buildFoodAnalysisPrompt($user);
             Log::info('📝 [GEMINI] Prompt criado, enviando requisição...');
+            if ($user) {
+                Log::info('👤 [GEMINI] Análise personalizada para usuário: ' . $user->name . ' (' . $user->weight . 'kg, ' . $user->height . 'cm)');
+            }
             
             $response = Http::timeout(30)
                 ->post($this->baseUrl . '?key=' . $this->apiKey, [
@@ -105,9 +108,36 @@ class GeminiAIService
     /**
      * Constrói o prompt para análise de comida
      */
-    private function buildFoodAnalysisPrompt(): string
+    private function buildFoodAnalysisPrompt($user = null): string
     {
+        // Informações do usuário para contextualizar a análise
+        $userContext = '';
+        if ($user) {
+            $age = $user->age ?? 30;
+            $weight = $user->weight ?? 70;
+            $height = $user->height ?? 170;
+            $activityLevels = ['Sedentário', 'Levemente ativo', 'Moderadamente ativo', 'Muito ativo', 'Extremamente ativo'];
+            $activityLevel = $activityLevels[$user->activity_level] ?? 'Moderadamente ativo';
+            $goals = ['Perder peso', 'Manter peso', 'Ganhar peso'];
+            $goal = $goals[$user->goal] ?? 'Manter peso';
+            $dailyCalories = $user->daily_calories ?? 2000;
+            
+            $userContext = "
+
+CONTEXTO DO USUÁRIO:
+- Idade: {$age} anos
+- Peso: {$weight}kg
+- Altura: {$height}cm  
+- Nível de atividade: {$activityLevel}
+- Objetivo: {$goal}
+- Meta calórica diária: {$dailyCalories} kcal
+
+IMPORTANTE: Use essas informações para avaliar se a porção está adequada para este perfil específico.
+Para uma pessoa de {$weight}kg com objetivo de '{$goal}', ajuste suas estimativas de acordo.";
+        }
+
         return "Você é um nutricionista especializado em análise visual de alimentos. Analise esta imagem de comida com MÁXIMA PRECISÃO e forneça as informações em formato JSON válido.
+{$userContext}
 
 IMPORTANTE: Retorne APENAS o JSON sem qualquer texto adicional, markdown ou explicações.
 

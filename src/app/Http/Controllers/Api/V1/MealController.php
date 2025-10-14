@@ -115,7 +115,7 @@ class MealController extends Controller
                 'food_name' => $request->food_name,
                 'calories' => $request->calories,
                 'meal_type' => $request->meal_type,
-                'consumed_at' => $request->consumed_at ?? now()->setTimezone(config('app.timezone', 'UTC')),
+                'consumed_at' => $request->consumed_at ?? now()->format('Y-m-d H:i:s'),
                 'ingredients' => $request->ingredients ? json_encode($request->ingredients) : null,
                 'description' => $request->description,
                 'confidence' => $request->confidence,

@@ -26,7 +26,6 @@ class Meal extends Model
     protected $casts = [
         'calories' => 'float',
         'confidence' => 'float',
-        'consumed_at' => 'datetime',
         'ingredients' => 'array',
     ];
 
@@ -64,7 +63,14 @@ class Meal extends Model
      */
     public function getFormattedConsumedAtAttribute(): string
     {
-        return $this->consumed_at ? $this->consumed_at->format('d/m/Y H:i') : '';
+        if (!$this->consumed_at) return '';
+        
+        try {
+            $date = Carbon::parse($this->consumed_at);
+            return $date->format('d/m/Y H:i');
+        } catch (\Exception $e) {
+            return '';
+        }
     }
 
     /**
@@ -134,7 +140,14 @@ class Meal extends Model
      */
     public function getIsTodayAttribute(): bool
     {
-        return $this->consumed_at && $this->consumed_at->isToday();
+        if (!$this->consumed_at) return false;
+        
+        try {
+            $date = Carbon::parse($this->consumed_at);
+            return $date->isToday();
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**

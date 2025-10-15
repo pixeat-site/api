@@ -74,8 +74,18 @@ Route::prefix('v1')->group(function () {
         
         // IA Analysis (protegidas)
         Route::prefix('ai')->group(function () {
-            Route::post('/analyze', [App\Http\Controllers\Api\V1\AIController::class, 'analyze']);
-            Route::post('/analyze-batch', [App\Http\Controllers\Api\V1\AIController::class, 'analyzeBatch']);
+            Route::post('/analyze', [App\Http\Controllers\Api\V1\AIController::class, 'analyze'])
+                ->middleware('check.analysis.limit');
+            Route::post('/analyze-batch', [App\Http\Controllers\Api\V1\AIController::class, 'analyzeBatch'])
+                ->middleware('check.analysis.limit');
+        });
+        
+        // Subscriptions
+        Route::prefix('subscriptions')->group(function () {
+            Route::get('/plans', [App\Http\Controllers\Api\V1\SubscriptionController::class, 'plans']);
+            Route::get('/status', [App\Http\Controllers\Api\V1\SubscriptionController::class, 'status']);
+            Route::post('/checkout', [App\Http\Controllers\Api\V1\SubscriptionController::class, 'createCheckout']);
+            Route::post('/cancel', [App\Http\Controllers\Api\V1\SubscriptionController::class, 'cancel']);
         });
         
         // Stats (simuladas por enquanto)
@@ -132,3 +142,7 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
+
+// Webhook do Stripe (fora do middleware de autenticação)
+Route::post('/stripe/webhook', [App\Http\Controllers\StripeWebhookController::class, 'handle'])
+    ->name('stripe.webhook');

@@ -209,7 +209,7 @@ class MealController extends Controller
             unlink($tempPath); // Remover arquivo temporário
             
             // Retornar URL pública
-            return Storage::disk('public')->url($path);
+            return url('storage/' . $path);
             
         } catch (\Exception $e) {
             Log::error('❌ [MEAL] Erro ao processar imagem: ' . $e->getMessage());

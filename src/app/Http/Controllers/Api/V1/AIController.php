@@ -48,17 +48,28 @@ class AIController extends Controller
             // Analisar com Gemini AI (com contexto do usuário se disponível)
             $analysis = $this->geminiService->analyzeFood($imageBase64, $user);
 
+            // Incrementar contador de uso do usuário
+            $user->incrementAnalysisUsage();
+
             // Log da análise para debug
             Log::info('AI Analysis Result', [
+                'user_id' => $user->id,
                 'food_name' => $analysis['food_name'],
                 'calories' => $analysis['estimated_calories'],
-                'confidence' => $analysis['confidence']
+                'confidence' => $analysis['confidence'],
+                'remaining_today' => $user->getRemainingAnalysesToday(),
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Análise concluída com sucesso',
-                'data' => $analysis
+                'data' => array_merge($analysis, [
+                    'usage_info' => [
+                        'remaining_today' => $user->getRemainingAnalysesToday(),
+                        'daily_limit' => $user->getCurrentPlan()->daily_analyses_limit,
+                        'plan_name' => $user->getCurrentPlan()->display_name,
+                    ]
+                ])
             ]);
 
         } catch (Exception $e) {

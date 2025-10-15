@@ -14,3 +14,4 @@ Route::get('/downloads/{filename}', [DownloadController::class, 'downloadApk'])
 
 // Informações sobre downloads
 Route::get('/downloads', [DownloadController::class, 'info'])->name('downloads.info');
+

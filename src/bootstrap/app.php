@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Debug middleware para ver o que chega no Laravel
         $middleware->append(\App\Http\Middleware\DebugRequest::class);
         
+        // Registrar middleware customizado
+        $middleware->alias([
+            'check.analysis.limit' => \App\Http\Middleware\CheckAnalysisLimit::class,
+        ]);
+        
         // Desabilitar redirecionamento para login na API
         $middleware->redirectGuestsTo(fn () => null);
     })

@@ -136,17 +136,17 @@ IMPORTANTE: Use essas informações para avaliar se a porção está adequada pa
 Para uma pessoa de {$weight}kg com objetivo de '{$goal}', ajuste suas estimativas de acordo.";
         }
 
-        return "Você é um nutricionista especializado em análise visual de alimentos. Analise esta imagem de comida com MÁXIMA PRECISÃO e forneça as informações em formato JSON válido.
+        return "Você é um nutricionista brasileiro especializado em análise visual detalhada de alimentos. Analise esta imagem com EXTREMA PRECISÃO, identificando CADA ELEMENTO visível no prato.
 {$userContext}
 
 IMPORTANTE: Retorne APENAS o JSON sem qualquer texto adicional, markdown ou explicações.
 
 {
-  \"food_name\": \"Nome específico do prato ou alimento (seja descritivo)\",
+  \"food_name\": \"Nome específico e completo do prato (ex: 'Prato executivo com arroz, feijão, bife e farofa')\",
   \"estimated_calories\": número_exato_de_calorias_baseado_no_volume_real,
   \"confidence\": valor_entre_0_e_1_da_sua_certeza,
   \"ingredients\": [\"ingrediente1\", \"ingrediente2\", \"ingrediente3\"],
-  \"description\": \"Descrição detalhada e objetiva do prato\",
+  \"description\": \"Descrição detalhada listando TODOS os componentes visíveis\",
   \"portion_size\": \"pequena|média|grande\",
   \"nutritional_info\": {
     \"carbohydrates\": gramas_de_carboidratos,
@@ -156,38 +156,82 @@ IMPORTANTE: Retorne APENAS o JSON sem qualquer texto adicional, markdown ou expl
   }
 }
 
-REGRAS CRÍTICAS:
-1. ANÁLISE DE PORÇÃO: Observe cuidadosamente o tamanho da porção. Use referências visuais como pratos, talheres ou embalagens.
-   - Porção pequena: ~200-300 kcal
-   - Porção média: ~400-600 kcal  
-   - Porção grande: ~700-1000 kcal
+METODOLOGIA DE ANÁLISE OBRIGATÓRIA:
 
-2. CONFIANÇA (confidence):
-   - 0.9-1.0: Prato claramente visível, ingredientes identificáveis, porção clara
-   - 0.7-0.8: Maioria dos ingredientes visíveis, porção razoavelmente estimável
-   - 0.5-0.6: Alguns ingredientes obscuros, porção difícil de estimar
-   - 0.3-0.4: Imagem de baixa qualidade ou ângulo ruim
-   - 0.1-0.2: Não é possível identificar comida claramente
+🔍 PASSO 1 - VARREDURA COMPLETA DO PRATO:
+- Examine CADA centímetro quadrado da imagem
+- Identifique TODOS os alimentos, mesmo os pequenos
+- Procure por: grãos, carnes, vegetais, molhos, temperos, farofa, queijo, etc.
+- NÃO IGNORE elementos que parecem pequenos ou secundários
 
-3. CALORIAS PRECISAS:
-   - Considere TODOS os ingredientes visíveis
-   - Observe óleos, molhos e temperos
-   - Para pratos brasileiros: arroz (~200kcal/xícara), feijão (~150kcal/concha), carne (~250kcal/100g)
-   - Ajuste baseado no volume real da porção na imagem
+🔍 PASSO 2 - IDENTIFICAÇÃO ESPECÍFICA POR CATEGORIA:
 
-4. INGREDIENTES: Liste todos os componentes visíveis (mínimo 3, máximo 8)
+CEREAIS/GRÃOS:
+- Arroz (branco, integral, temperado): ~200kcal/xícara
+- Macarrão/massa: ~220kcal/xícara
+- Farofa (simples, bacon, ovos): ~150kcal/colher sopa
+- Polenta: ~80kcal/fatia
 
-5. MACRONUTRIENTES: Calcule baseado nos ingredientes identificados e porção estimada
+LEGUMINOSAS:
+- Feijão (carioca, preto, fradinho): ~150kcal/concha
+- Lentilha: ~230kcal/xícara
+- Grão-de-bico: ~270kcal/xícara
 
-6. PRATOS COMPOSTOS: Se houver múltiplos alimentos no prato, some as calorias de cada um
+PROTEÍNAS:
+- Bife/carne vermelha: ~250kcal/100g
+- Frango grelhado: ~165kcal/100g
+- Peixe: ~200kcal/100g
+- Ovo frito: ~90kcal/unidade
+- Linguiça: ~300kcal/100g
 
-7. DESCRIÇÃO: Seja específico - ex: \"Prato com arroz branco, feijão preto, bife grelhado e salada de tomate\"
+VEGETAIS/SALADAS:
+- Alface, tomate, pepino: ~20kcal/xícara
+- Batata frita: ~365kcal/100g
+- Batata cozida: ~87kcal/100g
+- Cenoura refogada: ~35kcal/100g
 
-EXEMPLOS DE BOA ANÁLISE:
-- Prato grande com arroz, feijão, carne e salad → 850-950 kcal
-- Sanduíche médio → 400-500 kcal
-- Salada com frango grelhado → 350-450 kcal
-- Pizza 2 fatias grandes → 600-700 kcal
+MOLHOS/TEMPEROS:
+- Azeite/óleo: ~120kcal/colher sopa
+- Molho de tomate: ~30kcal/colher sopa
+- Maionese: ~100kcal/colher sopa
+
+🔍 PASSO 3 - ESTIMATIVA DE VOLUME:
+- Use referências visuais (prato, talheres, mãos)
+- Prato raso padrão: ~23cm diâmetro
+- Concha de feijão: ~80ml
+- Colher de arroz: ~60g
+- Porção de carne: compare com palma da mão
+
+🔍 PASSO 4 - CÁLCULO FINAL:
+- Some as calorias de CADA ingrediente identificado
+- Ajuste pela porção real observada
+- Considere método de preparo (frito +30%, grelhado normal)
+
+EXEMPLOS DE ANÁLISE DETALHADA:
+
+PRATO EXECUTIVO TÍPICO:
+- Arroz branco (1 xícara): 200kcal
+- Feijão carioca (1 concha): 150kcal  
+- Bife grelhado (120g): 300kcal
+- Farofa de bacon (2 col. sopa): 180kcal
+- Salada (alface, tomate): 25kcal
+- Batata frita (50g): 180kcal
+TOTAL: ~1035kcal
+
+LANCHE/SANDUÍCHE:
+- Pão francês: 150kcal
+- Presunto (30g): 45kcal
+- Queijo (20g): 70kcal
+- Maionese (1 col. chá): 35kcal
+TOTAL: ~300kcal
+
+REGRAS OBRIGATÓRIAS:
+1. Liste NO MÍNIMO 4 ingredientes para pratos compostos
+2. Seja ESPECÍFICO: \"farofa de bacon\" não \"farofa\"
+3. Identifique o MÉTODO DE PREPARO: grelhado, frito, cozido
+4. Considere TODOS os acompanhamentos visíveis
+5. Estime porções baseado em referências visuais reais
+6. Para pratos brasileiros, SEMPRE procure: arroz, feijão, proteína, farofa, salada
 
 Retorne APENAS o JSON, sem ```json ou qualquer outro marcador.";
     }

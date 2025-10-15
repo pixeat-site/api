@@ -128,16 +128,9 @@ class SubscriptionController extends Controller
                 ], 400);
             }
 
-            // Verificar se o plano tem price_id configurado
-            if (!$plan->stripe_price_id) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Plano não configurado no Stripe. Entre em contato com o suporte.',
-                    'error_code' => 'PLAN_NOT_CONFIGURED'
-                ], 400);
-            }
+            // Não precisa mais verificar stripe_price_id - criamos dinamicamente
 
-            // Criar sessão de checkout
+            // Criar sessão de checkout real do Stripe
             $session = $this->stripeService->createCheckoutSession($user, $plan);
 
             return response()->json([

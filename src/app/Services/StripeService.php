@@ -69,17 +69,41 @@ class StripeService
             throw new Exception('Não é possível criar checkout para plano gratuito');
         }
 
-        if (!$plan->stripe_price_id) {
-            throw new Exception('Plano não configurado no Stripe');
-        }
-
         $customer = $this->getOrCreateCustomer($user);
+
+        // Criar produto e preço dinamicamente
+        $product = Product::create([
+            'name' => $plan->display_name,
+            'description' => $plan->description,
+            'metadata' => [
+                'plan_id' => $plan->id,
+                'plan_name' => $plan->name,
+            ],
+        ]);
+
+        $price = Price::create([
+            'unit_amount' => (int) ($plan->price * 100), // Converter para centavos
+            'currency' => 'brl',
+            'recurring' => ['interval' => 'month'],
+            'product' => $product->id,
+            'metadata' => [
+                'plan_id' => $plan->id,
+                'plan_name' => $plan->name,
+            ],
+        ]);
+
+        Log::info('Stripe: Produto e preço criados dinamicamente', [
+            'product_id' => $product->id,
+            'price_id' => $price->id,
+            'amount' => $plan->price,
+            'plan_id' => $plan->id,
+        ]);
 
         $session = Session::create([
             'customer' => $customer->id,
             'payment_method_types' => ['card'],
             'line_items' => [[
-                'price' => $plan->stripe_price_id,
+                'price' => $price->id,
                 'quantity' => 1,
             ]],
             'mode' => 'subscription',

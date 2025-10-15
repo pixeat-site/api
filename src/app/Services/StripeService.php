@@ -222,8 +222,12 @@ class StripeService
             'stripe_subscription_id' => $stripeSubscription->id,
             'stripe_customer_id' => $stripeSubscription->customer,
             'status' => 'active',
-            'current_period_start' => now()->createFromTimestamp($stripeSubscription->current_period_start),
-            'current_period_end' => now()->createFromTimestamp($stripeSubscription->current_period_end),
+            'current_period_start' => $stripeSubscription->current_period_start 
+                ? now()->createFromTimestamp($stripeSubscription->current_period_start) 
+                : now(),
+            'current_period_end' => $stripeSubscription->current_period_end 
+                ? now()->createFromTimestamp($stripeSubscription->current_period_end) 
+                : now()->addMonth(),
         ]);
 
         Log::info('Subscription created from checkout', [

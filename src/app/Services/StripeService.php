@@ -107,8 +107,8 @@ class StripeService
                 'quantity' => 1,
             ]],
             'mode' => 'subscription',
-            'success_url' => config('app.frontend_url') . '/subscription/success?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => config('app.frontend_url') . '/subscription/plans',
+            'success_url' => 'pixeat://payment/success?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => 'pixeat://payment/cancelled',
             'metadata' => [
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,

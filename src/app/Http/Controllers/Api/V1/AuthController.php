@@ -280,14 +280,26 @@ class AuthController extends Controller
 
             // Verificar token do Google
             $idToken = $request->id_token;
+            \Log::info('Google Login - Token recebido', [
+                'token_length' => strlen($idToken),
+                'token_start' => substr($idToken, 0, 50) . '...'
+            ]);
+            
             $googleUser = $this->verifyGoogleToken($idToken);
 
             if (!$googleUser) {
+                \Log::error('Google Login - Token inválido', [
+                    'token' => $idToken
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Token do Google inválido'
                 ], 401);
             }
+            
+            \Log::info('Google Login - Dados do usuário obtidos', [
+                'user_data' => $googleUser
+            ]);
 
             // Buscar ou criar usuário
             $user = User::where('email', $googleUser['email'])->first();
@@ -334,31 +346,71 @@ class AuthController extends Controller
     /**
      * Verificar token do Google
      */
-    private function verifyGoogleToken(string $idToken): ?array
+    private function verifyGoogleToken(string $token): ?array
     {
         try {
-            // Fazer requisição para o endpoint de verificação do Google
-            $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . $idToken;
+            \Log::info('Verificando token do Google', ['token_length' => strlen($token)]);
+            
+            // Tentar primeiro como ID Token
+            $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . $token;
+            \Log::info('Tentando como ID Token', ['url' => $url]);
+            
+            $response = file_get_contents($url);
+            
+            if ($response !== false) {
+                $data = json_decode($response, true);
+                \Log::info('Resposta ID Token', ['data' => $data]);
+                
+                if (!isset($data['error'])) {
+                    \Log::info('ID Token válido');
+                    return $data;
+                }
+                \Log::warning('ID Token com erro', ['error' => $data['error']]);
+            } else {
+                \Log::warning('Falha ao obter resposta do ID Token');
+            }
+
+            // Se falhar, tentar como Access Token
+            $url = 'https://oauth2.googleapis.com/tokeninfo?access_token=' . $token;
+            \Log::info('Tentando como Access Token', ['url' => $url]);
+            
             $response = file_get_contents($url);
             
             if ($response === false) {
+                \Log::error('Falha ao obter resposta do Access Token');
                 return null;
             }
 
             $data = json_decode($response, true);
+            \Log::info('Resposta Access Token', ['data' => $data]);
 
             // Verificar se o token é válido
             if (isset($data['error'])) {
+                \Log::error('Access Token com erro', ['error' => $data['error']]);
                 return null;
             }
 
-            // Verificar se o token é para nossa aplicação (opcional)
-            // if ($data['aud'] !== config('services.google.client_id')) {
-            //     return null;
-            // }
+            // Para Access Token, precisamos buscar informações do usuário
+            if (!isset($data['email'])) {
+                \Log::info('Buscando informações do usuário via Access Token');
+                $userInfoUrl = 'https://www.googleapis.com/oauth2/v2/userinfo?access_token=' . $token;
+                $userResponse = file_get_contents($userInfoUrl);
+                
+                if ($userResponse !== false) {
+                    $userData = json_decode($userResponse, true);
+                    \Log::info('Dados do usuário obtidos', ['user_data' => $userData]);
+                    
+                    if (!isset($userData['error'])) {
+                        // Combinar dados do token com dados do usuário
+                        $data = array_merge($data, $userData);
+                    }
+                }
+            }
 
+            \Log::info('Token verificado com sucesso');
             return $data;
         } catch (\Exception $e) {
+            \Log::error('Exceção ao verificar token', ['error' => $e->getMessage()]);
             return null;
         }
     }

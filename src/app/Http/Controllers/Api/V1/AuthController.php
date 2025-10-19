@@ -351,64 +351,80 @@ class AuthController extends Controller
         try {
             \Log::info('Verificando token do Google', ['token_length' => strlen($token)]);
             
-            // Tentar primeiro como ID Token
-            $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . $token;
-            \Log::info('Tentando como ID Token', ['url' => $url]);
+            // Detectar tipo de token pelo prefixo
+            $isAccessToken = str_starts_with($token, 'ya29.');
             
-            $response = file_get_contents($url);
-            
-            if ($response !== false) {
-                $data = json_decode($response, true);
-                \Log::info('Resposta ID Token', ['data' => $data]);
+            if ($isAccessToken) {
+                \Log::info('Token detectado como Access Token');
                 
-                if (!isset($data['error'])) {
-                    \Log::info('ID Token válido');
-                    return $data;
+                // Validar Access Token
+                $url = 'https://oauth2.googleapis.com/tokeninfo?access_token=' . $token;
+                \Log::info('Validando Access Token', ['url' => $url]);
+                
+                $response = file_get_contents($url);
+                
+                if ($response === false) {
+                    \Log::error('Falha ao validar Access Token');
+                    return null;
                 }
-                \Log::warning('ID Token com erro', ['error' => $data['error']]);
-            } else {
-                \Log::warning('Falha ao obter resposta do ID Token');
-            }
 
-            // Se falhar, tentar como Access Token
-            $url = 'https://oauth2.googleapis.com/tokeninfo?access_token=' . $token;
-            \Log::info('Tentando como Access Token', ['url' => $url]);
-            
-            $response = file_get_contents($url);
-            
-            if ($response === false) {
-                \Log::error('Falha ao obter resposta do Access Token');
-                return null;
-            }
+                $tokenData = json_decode($response, true);
+                \Log::info('Resposta validação Access Token', ['data' => $tokenData]);
 
-            $data = json_decode($response, true);
-            \Log::info('Resposta Access Token', ['data' => $data]);
+                if (isset($tokenData['error'])) {
+                    \Log::error('Access Token inválido', ['error' => $tokenData['error']]);
+                    return null;
+                }
 
-            // Verificar se o token é válido
-            if (isset($data['error'])) {
-                \Log::error('Access Token com erro', ['error' => $data['error']]);
-                return null;
-            }
-
-            // Para Access Token, precisamos buscar informações do usuário
-            if (!isset($data['email'])) {
-                \Log::info('Buscando informações do usuário via Access Token');
+                // Buscar dados do usuário
+                \Log::info('Buscando dados do usuário via Access Token');
                 $userInfoUrl = 'https://www.googleapis.com/oauth2/v2/userinfo?access_token=' . $token;
                 $userResponse = file_get_contents($userInfoUrl);
                 
-                if ($userResponse !== false) {
-                    $userData = json_decode($userResponse, true);
-                    \Log::info('Dados do usuário obtidos', ['user_data' => $userData]);
-                    
-                    if (!isset($userData['error'])) {
-                        // Combinar dados do token com dados do usuário
-                        $data = array_merge($data, $userData);
-                    }
+                if ($userResponse === false) {
+                    \Log::error('Falha ao buscar dados do usuário');
+                    return null;
                 }
+
+                $userData = json_decode($userResponse, true);
+                \Log::info('Dados do usuário obtidos', ['user_data' => $userData]);
+                
+                if (isset($userData['error'])) {
+                    \Log::error('Erro ao buscar dados do usuário', ['error' => $userData['error']]);
+                    return null;
+                }
+
+                // Combinar dados do token com dados do usuário
+                $finalData = array_merge($tokenData, $userData);
+                \Log::info('Token Access verificado com sucesso', ['final_data' => $finalData]);
+                return $finalData;
+                
+            } else {
+                \Log::info('Token detectado como ID Token');
+                
+                // Tentar como ID Token
+                $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . $token;
+                \Log::info('Validando ID Token', ['url' => $url]);
+                
+                $response = file_get_contents($url);
+                
+                if ($response === false) {
+                    \Log::error('Falha ao validar ID Token');
+                    return null;
+                }
+
+                $data = json_decode($response, true);
+                \Log::info('Resposta ID Token', ['data' => $data]);
+                
+                if (isset($data['error'])) {
+                    \Log::error('ID Token inválido', ['error' => $data['error']]);
+                    return null;
+                }
+
+                \Log::info('ID Token verificado com sucesso');
+                return $data;
             }
 
-            \Log::info('Token verificado com sucesso');
-            return $data;
         } catch (\Exception $e) {
             \Log::error('Exceção ao verificar token', ['error' => $e->getMessage()]);
             return null;

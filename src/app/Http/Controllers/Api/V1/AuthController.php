@@ -261,6 +261,109 @@ class AuthController extends Controller
     }
 
     /**
+     * Login com Google OAuth
+     */
+    public function loginWithGoogle(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'id_token' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dados inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Verificar token do Google
+            $idToken = $request->id_token;
+            $googleUser = $this->verifyGoogleToken($idToken);
+
+            if (!$googleUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token do Google inválido'
+                ], 401);
+            }
+
+            // Buscar ou criar usuário
+            $user = User::where('email', $googleUser['email'])->first();
+
+            if (!$user) {
+                // Criar novo usuário
+                $user = User::create([
+                    'name' => $googleUser['name'],
+                    'email' => $googleUser['email'],
+                    'email_verified_at' => now(),
+                    'google_id' => $googleUser['sub'],
+                    'avatar' => $googleUser['picture'] ?? null,
+                    'password' => Hash::make(uniqid()), // Senha aleatória
+                ]);
+            } else {
+                // Atualizar dados do Google se necessário
+                $user->update([
+                    'google_id' => $googleUser['sub'],
+                    'avatar' => $googleUser['picture'] ?? $user->avatar,
+                ]);
+            }
+
+            // Gerar token de acesso
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Login com Google realizado com sucesso',
+                'data' => [
+                    'user' => $user,
+                    'access_token' => $token,
+                    'token_type' => 'Bearer'
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro no login com Google: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar token do Google
+     */
+    private function verifyGoogleToken(string $idToken): ?array
+    {
+        try {
+            // Fazer requisição para o endpoint de verificação do Google
+            $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . $idToken;
+            $response = file_get_contents($url);
+            
+            if ($response === false) {
+                return null;
+            }
+
+            $data = json_decode($response, true);
+
+            // Verificar se o token é válido
+            if (isset($data['error'])) {
+                return null;
+            }
+
+            // Verificar se o token é para nossa aplicação (opcional)
+            // if ($data['aud'] !== config('services.google.client_id')) {
+            //     return null;
+            // }
+
+            return $data;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
      * Calcular calorias diárias usando fórmula de Harris-Benedict
      */
     private function calculateDailyCalories(int $age, float $height, float $weight, int $activityLevel, int $goal, string $gender = 'male'): float

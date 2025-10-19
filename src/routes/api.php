@@ -32,6 +32,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('/register', [App\Http\Controllers\Api\V1\AuthController::class, 'register']);
         Route::post('/login', [App\Http\Controllers\Api\V1\AuthController::class, 'login']);
+        Route::post('/google', [App\Http\Controllers\Api\V1\AuthController::class, 'loginWithGoogle']);
         Route::post('/forgot-password', function (Request $request) {
             // TODO: Implementar recuperação de senha
             return response()->json([

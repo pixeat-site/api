@@ -38,15 +38,13 @@ class AIController extends Controller
                 ], 422);
             }
 
-            // Processar a imagem
+            // Processar a imagem (Story 2.1: mime_type correto para o Gemini)
             $image = $request->file('image');
             $imageBase64 = base64_encode(file_get_contents($image->getPathname()));
+            $mimeType = $image->getMimeType();
 
-            // Obter usuário autenticado para análise personalizada
             $user = auth()->user();
-            
-            // Analisar com Gemini AI (com contexto do usuário se disponível)
-            $analysis = $this->geminiService->analyzeFood($imageBase64, $user);
+            $analysis = $this->geminiService->analyzeFood($imageBase64, $user, $mimeType);
 
             // Incrementar contador de uso do usuário
             $user->incrementAnalysisUsage();
@@ -114,7 +112,7 @@ class AIController extends Controller
     }
 
     /**
-     * Retorna informações sobre o serviço de IA
+     * Informações do serviço de IA (Stories 2.1 e 3.1: modelo em uso, fallback e versão lógica).
      */
     public function info(): JsonResponse
     {
@@ -123,21 +121,19 @@ class AIController extends Controller
             'message' => 'Informações do serviço de IA',
             'data' => [
                 'service' => 'Google Gemini AI',
-                'model' => 'gemini-1.5-flash',
+                'version' => $this->geminiService->getVersion(),
+                'model' => $this->geminiService->getModelPrimary(),
+                'model_fallback' => $this->geminiService->getModelFallback(),
                 'capabilities' => [
                     'image_analysis',
                     'food_recognition',
                     'calorie_estimation',
                     'ingredient_identification',
-                    'nutritional_analysis'
+                    'nutritional_analysis',
                 ],
                 'supported_formats' => ['jpeg', 'png', 'jpg'],
                 'max_file_size' => '10MB',
-                'free_tier' => true,
-                'rate_limits' => [
-                    'requests_per_minute' => 15,
-                    'requests_per_day' => 1500
-                ]
+                'response_schema' => 'food_name, estimated_calories, confidence, ingredients, description, portion_size, nutritional_info',
             ]
         ]);
     }
@@ -165,9 +161,11 @@ class AIController extends Controller
             $results = [];
             $totalCalories = 0;
 
+            $user = auth()->user();
             foreach ($request->file('images') as $index => $image) {
                 $imageBase64 = base64_encode(file_get_contents($image->getPathname()));
-                $analysis = $this->geminiService->analyzeFood($imageBase64);
+                $mimeType = $image->getMimeType();
+                $analysis = $this->geminiService->analyzeFood($imageBase64, $user, $mimeType);
                 
                 $results[] = [
                     'index' => $index,

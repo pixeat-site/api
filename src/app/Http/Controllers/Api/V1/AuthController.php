@@ -261,6 +261,103 @@ class AuthController extends Controller
     }
 
     /**
+     * Obter configurações do usuário (Story 1.1).
+     * Contrato: GET /api/v1/user/settings → { success, data: { dark_mode, notifications_enabled, language } }
+     */
+    public function settings(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $data = [
+                'dark_mode' => (bool) ($user->dark_mode ?? false),
+                'notifications_enabled' => (bool) ($user->notifications_enabled ?? true),
+                'language' => (string) ($user->language ?? 'pt'),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao buscar configurações: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Atualizar configurações do usuário (Story 1.1).
+     * Contrato: PUT /api/v1/user/settings → body: { dark_mode?, notifications_enabled?, language? }
+     */
+    public function updateSettings(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            $validator = Validator::make($request->all(), [
+                'dark_mode' => 'sometimes|boolean',
+                'notifications_enabled' => 'sometimes|boolean',
+                'language' => 'sometimes|string|max:10',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dados inválidos',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $updateData = $request->only(['dark_mode', 'notifications_enabled', 'language']);
+            $user->update(array_filter($updateData, fn ($v) => $v !== null));
+
+            $user = $user->fresh();
+            $data = [
+                'dark_mode' => (bool) ($user->dark_mode ?? false),
+                'notifications_enabled' => (bool) ($user->notifications_enabled ?? true),
+                'language' => (string) ($user->language ?? 'pt'),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Configurações atualizadas com sucesso',
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao atualizar configurações: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Excluir conta do usuário (soft delete) e revogar todos os tokens (Story 1.1).
+     * Contrato: DELETE /api/v1/user/account
+     */
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            // Revogar todos os tokens do usuário antes do soft delete
+            $user->tokens()->delete();
+            $user->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Conta excluída com sucesso',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao excluir conta: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Login com Google OAuth
      */
     public function loginWithGoogle(Request $request): JsonResponse

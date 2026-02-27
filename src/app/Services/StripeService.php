@@ -107,8 +107,8 @@ class StripeService
                 'quantity' => 1,
             ]],
             'mode' => 'subscription',
-            'success_url' => 'pixeat://payment/success?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => 'pixeat://payment/cancelled',
+            'success_url' => config('app.frontend_url') . '/?payment=success&session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => config('app.frontend_url') . '/?payment=cancelled',
             'metadata' => [
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
@@ -222,12 +222,8 @@ class StripeService
             'stripe_subscription_id' => $stripeSubscription->id,
             'stripe_customer_id' => $stripeSubscription->customer,
             'status' => 'active',
-            'current_period_start' => $stripeSubscription->current_period_start 
-                ? now()->createFromTimestamp($stripeSubscription->current_period_start) 
-                : now(),
-            'current_period_end' => $stripeSubscription->current_period_end 
-                ? now()->createFromTimestamp($stripeSubscription->current_period_end) 
-                : now()->addMonth(),
+            'current_period_start' => now()->createFromTimestamp($stripeSubscription->current_period_start),
+            'current_period_end' => now()->createFromTimestamp($stripeSubscription->current_period_end),
         ]);
 
         Log::info('Subscription created from checkout', [

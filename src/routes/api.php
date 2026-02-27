@@ -57,10 +57,13 @@ Route::prefix('v1')->group(function () {
     // Rotas protegidas (requerem autenticação)
     Route::middleware('auth:sanctum')->group(function () {
         
-        // User Profile
+        // User Profile e Settings (Story 1.1)
         Route::prefix('user')->group(function () {
             Route::get('/profile', [App\Http\Controllers\Api\V1\AuthController::class, 'profile']);
             Route::put('/profile', [App\Http\Controllers\Api\V1\AuthController::class, 'updateProfile']);
+            Route::get('/settings', [App\Http\Controllers\Api\V1\AuthController::class, 'settings']);
+            Route::put('/settings', [App\Http\Controllers\Api\V1\AuthController::class, 'updateSettings']);
+            Route::delete('/account', [App\Http\Controllers\Api\V1\AuthController::class, 'deleteAccount']);
         });
         
         // Meals

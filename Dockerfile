@@ -26,8 +26,9 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 # Instalar dependências PostgreSQL
 RUN apt-get update && apt-get install -y libpq-dev
 
-# Instalar extensões PHP
-RUN docker-php-ext-install pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip
+# Instalar extensões PHP (GD com JPEG para MealImageService/imagejpeg)
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip
 
 # Instalar Redis extension
 RUN pecl install redis && docker-php-ext-enable redis

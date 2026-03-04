@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Services\AnalysisImageService;
 use App\Services\GeminiAIService;
+use App\Services\GroqAIService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -14,9 +16,15 @@ class AIController extends Controller
 {
     private GeminiAIService $geminiService;
 
-    public function __construct(GeminiAIService $geminiService)
+    private GroqAIService $groqService;
+
+    private AnalysisImageService $analysisImageService;
+
+    public function __construct(GeminiAIService $geminiService, GroqAIService $groqService, AnalysisImageService $analysisImageService)
     {
         $this->geminiService = $geminiService;
+        $this->groqService = $groqService;
+        $this->analysisImageService = $analysisImageService;
     }
 
     /**
@@ -38,15 +46,38 @@ class AIController extends Controller
                 ], 422);
             }
 
-            // Processar a imagem (Story 2.1: mime_type correto para o Gemini)
+            // Normalizar imagem (redimensionar/comprimir) para caber no Groq e reduzir payload
             $image = $request->file('image');
-            $imageBase64 = base64_encode(file_get_contents($image->getPathname()));
-            $mimeType = $image->getMimeType();
-
+            $normalized = $this->analysisImageService->normalize($image);
+            $imageBase64 = $normalized['base64'];
+            $mimeType = $normalized['mime_type'];
             $user = auth()->user();
+
             $analysis = $this->geminiService->analyzeFood($imageBase64, $user, $mimeType);
 
-            // Incrementar contador de uso do usuário
+            // Se a IA não rodou (fallback padrão), não consumir cota e responder como indisponível.
+            if (($analysis['analysis_source'] ?? null) === 'default') {
+                Log::warning('AI Analysis Unavailable (default fallback)', ['user_id' => $user->id]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Serviço de IA temporariamente indisponível. Tente novamente em alguns minutos.',
+                    'data' => null,
+                ], 503);
+            }
+
+            // Resposta genérica (Refeição, 0.3) = modelo não analisou de fato; não contar como sucesso.
+            $isGeneric = ($analysis['food_name'] ?? '') === 'Refeição'
+                && (float) ($analysis['confidence'] ?? 0) <= 0.4;
+            if ($isGeneric) {
+                Log::warning('AI Analysis Generic (low confidence)', ['user_id' => $user->id]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Não foi possível analisar esta imagem. Tente outra foto ou aguarde alguns minutos (limite de uso da IA).',
+                    'data' => null,
+                ], 503);
+            }
+
+            // Incrementar contador de uso do usuário (somente quando houve análise real)
             $user->incrementAnalysisUsage();
 
             // Log da análise para debug
@@ -70,6 +101,42 @@ class AIController extends Controller
                 ])
             ]);
 
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'GEMINI_QUOTA_EXCEEDED') {
+                $user = auth()->user();
+                if (isset($imageBase64, $mimeType) && $this->groqService->isConfigured()) {
+                    $analysis = $this->groqService->analyzeFood($imageBase64, $user, $mimeType);
+                    if ($analysis !== null) {
+                        $isGeneric = ($analysis['food_name'] ?? '') === 'Refeição'
+                            && (float) ($analysis['confidence'] ?? 0) <= 0.4;
+                        if (! $isGeneric) {
+                            $user->incrementAnalysisUsage();
+                            Log::info('AI Analysis Result (Groq fallback)', [
+                                'user_id' => $user->id,
+                                'food_name' => $analysis['food_name'],
+                            ]);
+                            return response()->json([
+                                'success' => true,
+                                'message' => 'Análise concluída com sucesso',
+                                'data' => array_merge($analysis, [
+                                    'usage_info' => [
+                                        'remaining_today' => $user->getRemainingAnalysesToday(),
+                                        'daily_limit' => $user->getCurrentPlan()->daily_analyses_limit,
+                                        'plan_name' => $user->getCurrentPlan()->display_name,
+                                    ],
+                                ]),
+                            ], 200);
+                        }
+                    }
+                }
+                Log::warning('AI Analysis Quota Exceeded (429), Groq indisponível ou sem resultado', ['user_id' => auth()->id()]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Limite de uso da IA atingido. Tente novamente em alguns minutos.',
+                    'data' => null,
+                ], 503);
+            }
+            throw $e;
         } catch (Exception $e) {
             Log::error('AI Analysis Error', [
                 'message' => $e->getMessage(),

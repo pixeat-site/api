@@ -42,11 +42,15 @@ return [
 
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
-        // Story 2.1: modelo estável + fallback
-        'model_primary' => env('GEMINI_MODEL_PRIMARY', 'gemini-1.5-flash'),
-        'model_fallback' => env('GEMINI_MODEL_FALLBACK', 'gemini-2.0-flash-exp'),
-        // Story 3.1: versão lógica da IA (V2, V3, etc) para info() e observabilidade
+        // Modelos estáveis atuais (2025): ver docs/architecture/gemini-integracao.md
+        'model_primary' => env('GEMINI_MODEL_PRIMARY', 'gemini-2.0-flash'),
+        'model_fallback' => env('GEMINI_MODEL_FALLBACK', 'gemini-2.5-flash'),
         'version' => env('GEMINI_MODEL_VERSION', 'v2'),
+    ],
+
+    'groq' => [
+        'api_key' => env('GROQ_API_KEY'),
+        'model' => env('GROQ_MODEL', 'meta-llama/llama-4-scout-17b-16e-instruct'),
     ],
 
     'stripe' => [

@@ -3,50 +3,37 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\LoginRequest;
+use App\Http\Requests\Api\V1\LoginWithGoogleRequest;
+use App\Http\Requests\Api\V1\RegisterRequest;
+use App\Http\Requests\Api\V1\UpdateProfileRequest;
+use App\Http\Requests\Api\V1\UpdateSettingsRequest;
 use App\Models\User;
-use Illuminate\Http\Request;
+use App\Services\GoogleAuthService;
+use App\Services\UserProfileService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    /**
-     * Registro de usuário
-     */
-    public function register(Request $request): JsonResponse
+    public function __construct(
+        private UserProfileService $userProfileService,
+        private GoogleAuthService $googleAuthService
+    ) {
+    }
+
+    public function register(RegisterRequest $request): JsonResponse
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users',
-                'password' => 'required|string|min:6|confirmed',
-                'age' => 'nullable|integer|min:1|max:120',
-                'height' => 'nullable|numeric|min:50|max:250',
-                'weight' => 'nullable|numeric|min:20|max:300',
-                'target_weight' => 'nullable|numeric|min:20|max:300',
-                'activity_level' => 'nullable|integer|between:0,4',
-                'goal' => 'nullable|integer|between:0,2',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Dados inválidos',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            // Calcular calorias diárias baseado nos dados
-            $dailyCalories = $this->calculateDailyCalories(
-                $request->age ?? 25,
-                $request->height ?? 170,
-                $request->weight ?? 70,
-                $request->activity_level ?? 1,
-                $request->goal ?? 0,
-                'male' // Por padrão, pode ser adicionado no formulário
+            $dailyCalories = $this->userProfileService->calculateDailyCalories(
+                (int) ($request->age ?? 25),
+                (float) ($request->height ?? 170),
+                (float) ($request->weight ?? 70),
+                (int) ($request->activity_level ?? 1),
+                (int) ($request->goal ?? 0),
+                'male'
             );
 
             $user = User::create([
@@ -70,41 +57,24 @@ class AuthController extends Controller
                 'data' => [
                     'user' => $user,
                     'access_token' => $token,
-                    'token_type' => 'Bearer'
-                ]
+                    'token_type' => 'Bearer',
+                ],
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao registrar usuário: ' . $e->getMessage()
+                'message' => 'Erro ao registrar usuário: ' . $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Login de usuário
-     */
-    public function login(Request $request): JsonResponse
+    public function login(LoginRequest $request): JsonResponse
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|email',
-                'password' => 'required|string',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Dados inválidos',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
             if (!Auth::attempt($request->only('email', 'password'))) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Credenciais inválidas'
+                    'message' => 'Credenciais inválidas',
                 ], 401);
             }
 
@@ -117,21 +87,17 @@ class AuthController extends Controller
                 'data' => [
                     'user' => $user,
                     'access_token' => $token,
-                    'token_type' => 'Bearer'
-                ]
+                    'token_type' => 'Bearer',
+                ],
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao fazer login: ' . $e->getMessage()
+                'message' => 'Erro ao fazer login: ' . $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Logout de usuário
-     */
     public function logout(Request $request): JsonResponse
     {
         try {
@@ -139,29 +105,21 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Logout realizado com sucesso'
+                'message' => 'Logout realizado com sucesso',
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao fazer logout: ' . $e->getMessage()
+                'message' => 'Erro ao fazer logout: ' . $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Refresh token
-     */
     public function refresh(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
-            
-            // Deletar token atual
             $request->user()->currentAccessToken()->delete();
-            
-            // Criar novo token
             $token = $user->createToken('auth_token')->plainTextToken;
 
             return response()->json([
@@ -169,78 +127,49 @@ class AuthController extends Controller
                 'message' => 'Token renovado com sucesso',
                 'data' => [
                     'access_token' => $token,
-                    'token_type' => 'Bearer'
-                ]
+                    'token_type' => 'Bearer',
+                ],
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao renovar token: ' . $e->getMessage()
+                'message' => 'Erro ao renovar token: ' . $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Obter perfil do usuário
-     */
     public function profile(Request $request): JsonResponse
     {
         try {
             return response()->json([
                 'success' => true,
-                'data' => $request->user()
+                'data' => $request->user(),
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao buscar perfil: ' . $e->getMessage()
+                'message' => 'Erro ao buscar perfil: ' . $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Atualizar perfil do usuário
-     */
-    public function updateProfile(Request $request): JsonResponse
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         try {
             $user = $request->user();
-
-            $validator = Validator::make($request->all(), [
-                'name' => 'sometimes|string|max:255',
-                'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
-                'age' => 'sometimes|integer|min:1|max:120',
-                'height' => 'sometimes|numeric|min:50|max:250',
-                'weight' => 'sometimes|numeric|min:20|max:300',
-                'target_weight' => 'sometimes|numeric|min:20|max:300',
-                'activity_level' => 'sometimes|integer|between:0,4',
-                'goal' => 'sometimes|integer|between:0,2',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Dados inválidos',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
             $updateData = $request->only([
-                'name', 'email', 'age', 'height', 'weight', 
-                'target_weight', 'activity_level', 'goal'
+                'name', 'email', 'age', 'height', 'weight',
+                'target_weight', 'activity_level', 'goal',
             ]);
 
-            // Recalcular calorias se dados relevantes mudaram
             if ($request->hasAny(['age', 'height', 'weight', 'activity_level', 'goal'])) {
-                $updateData['daily_calories'] = $this->calculateDailyCalories(
-                    $request->age ?? $user->age,
-                    $request->height ?? $user->height,
-                    $request->weight ?? $user->weight,
-                    $request->activity_level ?? $user->activity_level,
-                    $request->goal ?? $user->goal,
-                    'male' // Pode ser adicionado como campo
+                $updateData['daily_calories'] = $this->userProfileService->calculateDailyCalories(
+                    (int) ($request->age ?? $user->age ?? 25),
+                    (float) ($request->height ?? $user->height ?? 170),
+                    (float) ($request->weight ?? $user->weight ?? 70),
+                    (int) ($request->activity_level ?? $user->activity_level ?? 1),
+                    (int) ($request->goal ?? $user->goal ?? 0),
+                    'male'
                 );
             }
 
@@ -249,21 +178,16 @@ class AuthController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Perfil atualizado com sucesso',
-                'data' => $user->fresh()
+                'data' => $user->fresh(),
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao atualizar perfil: ' . $e->getMessage()
+                'message' => 'Erro ao atualizar perfil: ' . $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Obter configurações do usuário (Story 1.1).
-     * Contrato: GET /api/v1/user/settings → { success, data: { dark_mode, notifications_enabled, language } }
-     */
     public function settings(Request $request): JsonResponse
     {
         try {
@@ -286,29 +210,10 @@ class AuthController extends Controller
         }
     }
 
-    /**
-     * Atualizar configurações do usuário (Story 1.1).
-     * Contrato: PUT /api/v1/user/settings → body: { dark_mode?, notifications_enabled?, language? }
-     */
-    public function updateSettings(Request $request): JsonResponse
+    public function updateSettings(UpdateSettingsRequest $request): JsonResponse
     {
         try {
             $user = $request->user();
-
-            $validator = Validator::make($request->all(), [
-                'dark_mode' => 'sometimes|boolean',
-                'notifications_enabled' => 'sometimes|boolean',
-                'language' => 'sometimes|string|max:10',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Dados inválidos',
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
             $updateData = $request->only(['dark_mode', 'notifications_enabled', 'language']);
             $user->update(array_filter($updateData, fn ($v) => $v !== null));
 
@@ -332,16 +237,10 @@ class AuthController extends Controller
         }
     }
 
-    /**
-     * Excluir conta do usuário (soft delete) e revogar todos os tokens (Story 1.1).
-     * Contrato: DELETE /api/v1/user/account
-     */
     public function deleteAccount(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
-
-            // Revogar todos os tokens do usuário antes do soft delete
             $user->tokens()->delete();
             $user->delete();
 
@@ -357,69 +256,19 @@ class AuthController extends Controller
         }
     }
 
-    /**
-     * Login com Google OAuth
-     */
-    public function loginWithGoogle(Request $request): JsonResponse
+    public function loginWithGoogle(LoginWithGoogleRequest $request): JsonResponse
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'id_token' => 'required|string',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Dados inválidos',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            // Verificar token do Google
-            $idToken = $request->id_token;
-            \Log::info('Google Login - Token recebido', [
-                'token_length' => strlen($idToken),
-                'token_start' => substr($idToken, 0, 50) . '...'
-            ]);
-            
-            $googleUser = $this->verifyGoogleToken($idToken);
+            $googleUser = $this->googleAuthService->verifyToken($request->id_token);
 
             if (!$googleUser) {
-                \Log::error('Google Login - Token inválido', [
-                    'token' => $idToken
-                ]);
                 return response()->json([
                     'success' => false,
-                    'message' => 'Token do Google inválido'
+                    'message' => 'Token do Google inválido',
                 ], 401);
             }
-            
-            \Log::info('Google Login - Dados do usuário obtidos', [
-                'user_data' => $googleUser
-            ]);
 
-            // Buscar ou criar usuário
-            $user = User::where('email', $googleUser['email'])->first();
-
-            if (!$user) {
-                // Criar novo usuário
-                $user = User::create([
-                    'name' => $googleUser['name'],
-                    'email' => $googleUser['email'],
-                    'email_verified_at' => now(),
-                    'google_id' => $googleUser['sub'],
-                    'avatar' => $googleUser['picture'] ?? null,
-                    'password' => Hash::make(uniqid()), // Senha aleatória
-                ]);
-            } else {
-                // Atualizar dados do Google se necessário
-                $user->update([
-                    'google_id' => $googleUser['sub'],
-                    'avatar' => $googleUser['picture'] ?? $user->avatar,
-                ]);
-            }
-
-            // Gerar token de acesso
+            $user = $this->googleAuthService->findOrCreateUser($googleUser);
             $token = $user->createToken('auth_token')->plainTextToken;
 
             return response()->json([
@@ -428,139 +277,14 @@ class AuthController extends Controller
                 'data' => [
                     'user' => $user,
                     'access_token' => $token,
-                    'token_type' => 'Bearer'
-                ]
+                    'token_type' => 'Bearer',
+                ],
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro no login com Google: ' . $e->getMessage()
+                'message' => 'Erro no login com Google: ' . $e->getMessage(),
             ], 500);
-        }
-    }
-
-    /**
-     * Verificar token do Google
-     */
-    private function verifyGoogleToken(string $token): ?array
-    {
-        try {
-            \Log::info('Verificando token do Google', ['token_length' => strlen($token)]);
-            
-            // Detectar tipo de token pelo prefixo
-            $isAccessToken = str_starts_with($token, 'ya29.');
-            
-            if ($isAccessToken) {
-                \Log::info('Token detectado como Access Token');
-                
-                // Validar Access Token
-                $url = 'https://oauth2.googleapis.com/tokeninfo?access_token=' . $token;
-                \Log::info('Validando Access Token', ['url' => $url]);
-                
-                $response = file_get_contents($url);
-                
-                if ($response === false) {
-                    \Log::error('Falha ao validar Access Token');
-                    return null;
-                }
-
-                $tokenData = json_decode($response, true);
-                \Log::info('Resposta validação Access Token', ['data' => $tokenData]);
-
-                if (isset($tokenData['error'])) {
-                    \Log::error('Access Token inválido', ['error' => $tokenData['error']]);
-                    return null;
-                }
-
-                // Buscar dados do usuário
-                \Log::info('Buscando dados do usuário via Access Token');
-                $userInfoUrl = 'https://www.googleapis.com/oauth2/v2/userinfo?access_token=' . $token;
-                $userResponse = file_get_contents($userInfoUrl);
-                
-                if ($userResponse === false) {
-                    \Log::error('Falha ao buscar dados do usuário');
-                    return null;
-                }
-
-                $userData = json_decode($userResponse, true);
-                \Log::info('Dados do usuário obtidos', ['user_data' => $userData]);
-                
-                if (isset($userData['error'])) {
-                    \Log::error('Erro ao buscar dados do usuário', ['error' => $userData['error']]);
-                    return null;
-                }
-
-                // Combinar dados do token com dados do usuário
-                $finalData = array_merge($tokenData, $userData);
-                \Log::info('Token Access verificado com sucesso', ['final_data' => $finalData]);
-                return $finalData;
-                
-            } else {
-                \Log::info('Token detectado como ID Token');
-                
-                // Tentar como ID Token
-                $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . $token;
-                \Log::info('Validando ID Token', ['url' => $url]);
-                
-                $response = file_get_contents($url);
-                
-                if ($response === false) {
-                    \Log::error('Falha ao validar ID Token');
-                    return null;
-                }
-
-                $data = json_decode($response, true);
-                \Log::info('Resposta ID Token', ['data' => $data]);
-                
-                if (isset($data['error'])) {
-                    \Log::error('ID Token inválido', ['error' => $data['error']]);
-                    return null;
-                }
-
-                \Log::info('ID Token verificado com sucesso');
-                return $data;
-            }
-
-        } catch (\Exception $e) {
-            \Log::error('Exceção ao verificar token', ['error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    /**
-     * Calcular calorias diárias usando fórmula de Harris-Benedict
-     */
-    private function calculateDailyCalories(int $age, float $height, float $weight, int $activityLevel, int $goal, string $gender = 'male'): float
-    {
-        // Calcular TMB (Taxa Metabólica Basal)
-        if ($gender === 'male') {
-            $bmr = 88.362 + (13.397 * $weight) + (4.799 * $height) - (5.677 * $age);
-        } else {
-            $bmr = 447.593 + (9.247 * $weight) + (3.098 * $height) - (4.330 * $age);
-        }
-
-        // Multiplicadores de atividade
-        $activityMultipliers = [
-            0 => 1.2,   // Sedentário
-            1 => 1.375, // Levemente ativo
-            2 => 1.55,  // Moderadamente ativo
-            3 => 1.725, // Muito ativo
-            4 => 1.9    // Extremamente ativo
-        ];
-
-        $tdee = $bmr * ($activityMultipliers[$activityLevel] ?? 1.375);
-
-        // Ajustar baseado no objetivo
-        switch ($goal) {
-            case 0: // Perder peso
-                return $tdee - 500; // Déficit de 500 calorias
-            case 1: // Manter peso
-                return $tdee;
-            case 2: // Ganhar peso
-                return $tdee + 500; // Superávit de 500 calorias
-            default:
-                return $tdee;
         }
     }
 }

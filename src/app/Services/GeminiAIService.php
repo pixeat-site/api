@@ -22,8 +22,8 @@ class GeminiAIService
     public function __construct()
     {
         $this->apiKey = config('services.gemini.api_key');
-        $this->modelPrimary = config('services.gemini.model_primary', 'gemini-1.5-flash');
-        $this->modelFallback = config('services.gemini.model_fallback', 'gemini-2.0-flash-exp');
+        $this->modelPrimary = config('services.gemini.model_primary', 'gemini-2.0-flash');
+        $this->modelFallback = config('services.gemini.model_fallback', 'gemini-2.5-flash');
         $this->version = config('services.gemini.version', 'v2');
     }
 
@@ -62,13 +62,18 @@ class GeminiAIService
                     'model_used' => $this->modelPrimary,
                     'latency_ms' => $latencyMs,
                 ]);
+                $result['analysis_source'] = 'gemini';
+                $result['model_used'] = $this->modelPrimary;
                 return $result;
             }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
+            if ($e instanceof \RuntimeException && $e->getMessage() === 'GEMINI_QUOTA_EXCEEDED') {
+                throw $e;
+            }
             Log::warning('⚠️ [GEMINI] Falha no modelo principal', ['message' => $e->getMessage()]);
         }
 
-        // Fallback para modelo alternativo
+        // Fallback para modelo alternativo (não tentar em caso de 429 — quota é por projeto)
         if ($this->modelFallback !== $this->modelPrimary) {
             try {
                 $start = microtime(true);
@@ -79,9 +84,14 @@ class GeminiAIService
                         'model_used' => $this->modelFallback,
                         'latency_ms' => $latencyMs,
                     ]);
+                    $result['analysis_source'] = 'gemini';
+                    $result['model_used'] = $this->modelFallback;
                     return $result;
                 }
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
+                if ($e instanceof \RuntimeException && $e->getMessage() === 'GEMINI_QUOTA_EXCEEDED') {
+                    throw $e;
+                }
                 Log::warning('⚠️ [GEMINI] Falha no modelo fallback', ['message' => $e->getMessage()]);
             }
         }
@@ -99,31 +109,43 @@ class GeminiAIService
     {
         $url = sprintf($this->baseUrlTemplate, $model) . '?key=' . $this->apiKey;
 
-        $response = Http::timeout(30)
+        // Imagem primeiro, depois o prompt (melhor para modelos de visão)
+        $response = Http::timeout(60)
             ->post($url, [
                 'contents' => [
                     [
                         'parts' => [
-                            ['text' => $prompt],
                             [
                                 'inline_data' => [
                                     'mime_type' => $mimeType,
                                     'data' => $imageBase64,
                                 ]
-                            ]
+                            ],
+                            ['text' => $prompt],
                         ]
                     ]
                 ],
                 'generationConfig' => [
-                    'temperature' => 0.2,
+                    'temperature' => 0.3,
                     'topK' => 40,
                     'topP' => 0.95,
                     'maxOutputTokens' => 2048,
-                ]
+                ],
+                // Reduz bloqueio em fotos de comida (análise nutricional)
+                'safetySettings' => [
+                    ['category' => 'HARM_CATEGORY_HARASSMENT', 'threshold' => 'BLOCK_ONLY_HIGH'],
+                    ['category' => 'HARM_CATEGORY_HATE_SPEECH', 'threshold' => 'BLOCK_ONLY_HIGH'],
+                    ['category' => 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold' => 'BLOCK_ONLY_HIGH'],
+                    ['category' => 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold' => 'BLOCK_ONLY_HIGH'],
+                ],
             ]);
 
         if (! $response->successful()) {
-            Log::error('❌ [GEMINI] API Error', ['status' => $response->status(), 'body' => $response->body()]);
+            $status = $response->status();
+            Log::error('❌ [GEMINI] API Error', ['status' => $status, 'body' => substr($response->body(), 0, 500)]);
+            if ($status === 429) {
+                throw new \RuntimeException('GEMINI_QUOTA_EXCEEDED', 429);
+            }
             throw new Exception('Erro na API do Gemini: ' . $response->body());
         }
 
@@ -175,7 +197,9 @@ CONTEXTO DO USUÁRIO:
 Use essas informações para avaliar se a porção está adequada e ajuste as estimativas.";
         }
 
-        return "Você é um nutricionista brasileiro. Analise esta imagem com precisão e identifique TODOS os elementos do prato.
+        return "Analise a IMAGEM anexada (foto de prato/comida). Retorne APENAS o objeto JSON abaixo, sem texto antes ou depois e sem markdown.
+
+Você é um nutricionista. A imagem é uma foto de refeição para um app de calorias. IDENTIFIQUE os alimentos visíveis na imagem e preencha o JSON com dados reais. Proibido usar \"Refeição\", \"Não foi possível identificar\" ou confidence 0,3 quando houver comida visível na foto; use confidence 0,7 ou mais e liste os ingredientes que você enxerga.
 {$userContext}
 
 REGRAS OBRIGATÓRIAS:
@@ -186,8 +210,8 @@ REGRAS OBRIGATÓRIAS:
   \"food_name\": \"Nome completo e específico do prato (ex: Prato executivo com arroz, feijão, bife e farofa)\",
   \"estimated_calories\": número,
   \"confidence\": número entre 0 e 1,
-  \"ingredients\": [\"ingrediente1\", \"ingrediente2\", \"ingrediente3\"],
-  \"description\": \"Descrição detalhada listando todos os componentes visíveis\",
+  \"ingredients\": [\"ingrediente1\", \"ingrediente2\", \"ingrediente3\", ...],
+  \"description\": \"Descrição detalhada listando todos os componentes visíveis e porções (ex: 1 concha de arroz, 1 bife médio, salada com folhas e tomate)\",
   \"portion_size\": \"pequena\" ou \"média\" ou \"grande\",
   \"nutritional_info\": {
     \"carbohydrates\": número em gramas,
@@ -197,12 +221,12 @@ REGRAS OBRIGATÓRIAS:
   }
 }
 
-METODOLOGIA:
-- Varredura completa: grãos, carnes, vegetais, molhos, farofa, salada.
-- Pratos brasileiros: sempre considerar arroz, feijão, proteína, acompanhamentos.
-- Porção: use referências visuais (prato ~23cm, concha, colher). portion_size = pequena|média|grande conforme volume.
-- Some calorias por ingrediente; ajuste por método de preparo (frito +30%, grelhado normal).
-- Mínimo 4 ingredientes para pratos compostos; seja específico (ex: farofa de bacon).
+METODOLOGIA OBRIGATÓRIA (calorias por ingrediente → soma):
+1. Liste CADA alimento/componente visível em \"ingredients\" (mínimo 3–5 itens para pratos compostos). Seja específico: \"arroz branco\", \"feijão preto\", \"bife grelhado\", \"farofa de bacon\", \"salada de alface e tomate\".
+2. Para CADA ingrediente, estime as calorias mentalmente (ex: arroz 1 concha ≈ 150 kcal, feijão 1 concha ≈ 130 kcal, bife médio ≈ 180 kcal). Some tudo e coloque o total em \"estimated_calories\".
+3. Ajuste por método de preparo: frito +20–30%, grelhado/cozido normal. Porção: prato ~23 cm, concha cheia, etc.
+4. nutritional_info: distribua o total de calorias em carboidratos, proteínas, gorduras e fibras de forma coerente com o tipo de prato (ex: arroz/feijão mais carbs, carne mais proteína).
+5. description: descreva o que está no prato e as quantidades visíveis (ex: \"Arroz branco (1 concha), feijão preto (1 concha), bife grelhado médio, farofa, salada verde com tomate\").
 
 Retorne somente o JSON.";
     }
@@ -218,6 +242,10 @@ Retorne somente o JSON.";
             $data = json_decode($cleanResponse, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
+                $cleanResponse = $this->extractJsonFromText($cleanResponse);
+                $data = $cleanResponse !== null ? json_decode($cleanResponse, true) : null;
+            }
+            if ($data === null || json_last_error() !== JSON_ERROR_NONE) {
                 Log::warning('JSON Parse Error', ['response' => substr($response, 0, 500)]);
                 return $this->getDefaultAnalysis();
             }
@@ -250,6 +278,29 @@ Retorne somente o JSON.";
         }
     }
 
+    /** Extrai o primeiro objeto JSON do texto (ex.: quando o modelo adiciona frase antes/depois). */
+    private function extractJsonFromText(string $text): ?string
+    {
+        $start = strpos($text, '{');
+        if ($start === false) {
+            return null;
+        }
+        $depth = 0;
+        $len = strlen($text);
+        for ($i = $start; $i < $len; $i++) {
+            $c = $text[$i];
+            if ($c === '{') {
+                $depth++;
+            } elseif ($c === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($text, $start, $i - $start + 1);
+                }
+            }
+        }
+        return null;
+    }
+
     private function getDefaultAnalysis(): array
     {
         return [
@@ -265,6 +316,11 @@ Retorne somente o JSON.";
                 'fats' => 12.0,
                 'fiber' => 5.0,
             ]
+            ,
+            // Observabilidade: permite diferenciar "IA rodou" vs fallback padrão.
+            // Campo extra e opcional: não quebra o contrato existente do app.
+            'analysis_source' => 'default',
+            'model_used' => null,
         ];
     }
 
